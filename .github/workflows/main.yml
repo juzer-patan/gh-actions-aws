@@ -17,7 +17,7 @@ env:
   ECR_REPO_STAGING-1: new-app-staging
   IMAGE_TAG: latest
   ECS_CLUSTER_PROD: vmox-ecs-production
-  ECS_CLUSTER_STAGING: vmox-ecs-staging
+  ECS_CLUSTER_STAGING: test-cluster
   ECS_SERVICE_PROD-1: new-app-service-production
   ECS_SERVICE_STAGING-1: new-app-service-staging
 
