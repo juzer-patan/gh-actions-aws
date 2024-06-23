@@ -10,27 +10,108 @@ on:
   pull_request:
     branches: [ "master" ]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+env:
+  AWS_ACCOUNT_ID: 353445870763
+  AWS_REGION: us-east-1
+  ECR_REPO_PROD-1: new-app-production
+  ECR_REPO_STAGING-1: new-app-staging
+  IMAGE_TAG: latest
+  ECS_CLUSTER_PROD: vmox-ecs-production
+  ECS_CLUSTER_STAGING: vmox-ecs-staging
+  ECS_SERVICE_PROD-1: new-app-service-production
+  ECS_SERVICE_STAGING-1: new-app-service-staging
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  build-and-deploy:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+     
+      # - name: Extract release tag from branch name
+      #   id: extract-release-tag
+      #   run: |
+      #     branch_name="${{ github.ref }}"
+      #     release_tag="${branch_name#refs/heads/release/}"
+      #     echo "release_tag=${branch_name#refs/heads/release/}" >>$GITHUB_OUTPUT
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      # - name: Debug information
+      #   run: |
+      #     echo "Branch name: ${{ github.ref }}"
+      #     echo "STAGING_RELEASE_VERSION: ${{ vars.STAGING_RELEASE_VERSION }}"
+      #     echo "PROD_RELEASE_VERSION: ${{ vars.PROD_RELEASE_VERSION }}"
+      #     echo "Event name: ${{ github.event_name }}"
+      #     echo "Release tag: ${{ steps.extract-release-tag.outputs.release_tag }}"
+      
+      # - name: match secret and release tag (prod)
+      #   id: secret-match-prod
+      #   run: |
+      #     if [ "${{ steps.extract-release-tag.outputs.release_tag }}" == "${{ vars.PROD_RELEASE_VERSION }}" ]; then
+      #       echo "secret-match-prod=true" >> $GITHUB_OUTPUT
+      #     else
+      #       echo "secret-match-prod=false" >> $GITHUB_OUTPUT
+      #     fi
+      
+      # - name: match secret and release tag (staging)
+      #   id: secret-match-staging
+      #   run: |
+      #     if [ "${{ steps.extract-release-tag.outputs.release_tag }}" == "${{ vars.STAGING_RELEASE_VERSION }}" ]; then
+      #       echo "secret-match-staging=true" >> $GITHUB_OUTPUT
+      #     else
+      #       echo "secret-match-staging=false" >> $GITHUB_OUTPUT
+      #     fi
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Install latest version of AWS CLI
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          sudo apt-get clean
+          sudo apt-get update
+          sudo apt-get install -y awscli
+          sudo apt install python3-pip
+          pip install awscli --upgrade
+    
+      ### Skipped Extract Secret Stage
+
+      - name: ECR Login one_portal (staging)
+        uses: aws-actions/amazon-ecr-login@v1
+        #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
+        with:
+            registry: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+            repository: ${{ env.ECR_REPO_STAGING-1 }}
+            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build and tag Docker image One_portal (staging)
+        id: build-image-new-app-staging
+        uses: docker/build-push-action@v2
+        #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
+        with:
+          context: .
+          file: ./Dockerfile
+          # build-args: |
+          #   RAILS_ENV=${{ steps.extract-secret-value-staging.outputs.RAILS_ENV }}
+          #   NODE_ENV=${{ steps.extract-secret-value-staging.outputs.NODE_ENV }}
+          #   STAGING_DB_HOST=${{ steps.extract-secret-value-staging.outputs.database_host }}
+          #   STAGING_DB_USERNAME=${{ steps.extract-secret-value-staging.outputs.database_username }}
+          #   STAGING_DB_PASSWORD=${{ steps.extract-secret-value-staging.outputs.database_password }}
+          #   STAGING_DB_DATABASE=${{ steps.extract-secret-value-staging.outputs.database_name }}
+          #   SECRET_KEY_BASE=${{ steps.extract-secret-value-staging.outputs.secret_key_base }}
+          push: true
+          tags: |
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_STAGING-1 }}:${{ env.IMAGE_TAG }}
+            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_STAGING-1 }}:${{ github.sha }}
+          if: always()
+          run: |
+            echo "Building Docker image..."
+            echo "Building Docker image..."
