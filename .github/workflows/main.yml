@@ -81,6 +81,18 @@ jobs:
           pip install awscli --upgrade
     
       ### Skipped Extract Secret Stage
+      - name: Extract secret value (staging)
+        #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
+        id: extract-secret-value-staging
+        run: |
+            #one_portal environment variables 
+            echo "database_host=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_host')" >> $GITHUB_OUTPUT
+            echo "database_username=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_username')" >> $GITHUB_OUTPUT
+          # echo "database_password=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_password')" >> $GITHUB_OUTPUT
+          # echo "database_name=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_name')" >> $GITHUB_OUTPUT
+          # echo "secret_key_base=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.secret_key_base')" >> $GITHUB_OUTPUT
+          # echo "RAILS_ENV=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.RAILS_ENV')" >> $GITHUB_OUTPUT
+          # echo "NODE_ENV=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.NODE_ENV')" >> $GITHUB_OUTPUT
 
       - name: ECR Login one_portal (staging)
         uses: aws-actions/amazon-ecr-login@v1
@@ -99,14 +111,14 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          # build-args: |
-          #   RAILS_ENV=${{ steps.extract-secret-value-staging.outputs.RAILS_ENV }}
-          #   NODE_ENV=${{ steps.extract-secret-value-staging.outputs.NODE_ENV }}
-          #   STAGING_DB_HOST=${{ steps.extract-secret-value-staging.outputs.database_host }}
-          #   STAGING_DB_USERNAME=${{ steps.extract-secret-value-staging.outputs.database_username }}
-          #   STAGING_DB_PASSWORD=${{ steps.extract-secret-value-staging.outputs.database_password }}
-          #   STAGING_DB_DATABASE=${{ steps.extract-secret-value-staging.outputs.database_name }}
-          #   SECRET_KEY_BASE=${{ steps.extract-secret-value-staging.outputs.secret_key_base }}
+          build-args: |
+             STAGING_DB_HOST=${{ steps.extract-secret-value-staging.outputs.database_host }}
+             STAGING_DB_USERNAME=${{ steps.extract-secret-value-staging.outputs.database_username }}
+        #   STAGING_DB_PASSWORD=${{ steps.extract-secret-value-staging.outputs.database_password }}
+        #   STAGING_DB_DATABASE=${{ steps.extract-secret-value-staging.outputs.database_name }}
+        #   SECRET_KEY_BASE=${{ steps.extract-secret-value-staging.outputs.secret_key_base }}
+        #   RAILS_ENV=${{ steps.extract-secret-value-staging.outputs.RAILS_ENV }}
+        #   NODE_ENV=${{ steps.extract-secret-value-staging.outputs.NODE_ENV }}
           push: true
           tags: |
             ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_STAGING-1 }}:${{ env.IMAGE_TAG }}
