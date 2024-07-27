@@ -76,4 +76,4 @@ jobs:
         run: |
           docker pull public.ecr.aws/c4n0o7y9/mssql-repo:latest
           docker run -d --name test-con -p 1401:1433 public.ecr.aws/c4n0o7y9/mssql-repo:latest
-          docker exec -it test-con /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P 'P@ssword1234' -Q 'SELECT Name FROM sys.Databases'
+          docker exec test-con /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P 'P@ssword1234' -Q 'SELECT Name FROM sys.Databases'
