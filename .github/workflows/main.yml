@@ -5,10 +5,11 @@ name: CI
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push or pull request events but only for the "master" branch
+  workflow_dispatch:
   push:
-    branches: [ "master" ]
+    branches: [ "mssql" ]
   pull_request:
-    branches: [ "master" ]
+    branches: [ "mssql" ]
 
 env:
   AWS_ACCOUNT_ID: 353445870763
@@ -31,108 +32,48 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
-     
-      # - name: Extract release tag from branch name
-      #   id: extract-release-tag
-      #   run: |
-      #     branch_name="${{ github.ref }}"
-      #     release_tag="${branch_name#refs/heads/release/}"
-      #     echo "release_tag=${branch_name#refs/heads/release/}" >>$GITHUB_OUTPUT
-
-      # - name: Debug information
-      #   run: |
-      #     echo "Branch name: ${{ github.ref }}"
-      #     echo "STAGING_RELEASE_VERSION: ${{ vars.STAGING_RELEASE_VERSION }}"
-      #     echo "PROD_RELEASE_VERSION: ${{ vars.PROD_RELEASE_VERSION }}"
-      #     echo "Event name: ${{ github.event_name }}"
-      #     echo "Release tag: ${{ steps.extract-release-tag.outputs.release_tag }}"
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: ${{ env.AWS_REGION }}
       
-      # - name: match secret and release tag (prod)
-      #   id: secret-match-prod
+      # - name: Install latest version of AWS CLI
       #   run: |
-      #     if [ "${{ steps.extract-release-tag.outputs.release_tag }}" == "${{ vars.PROD_RELEASE_VERSION }}" ]; then
-      #       echo "secret-match-prod=true" >> $GITHUB_OUTPUT
-      #     else
-      #       echo "secret-match-prod=false" >> $GITHUB_OUTPUT
-      #     fi
-      
-      # - name: match secret and release tag (staging)
-      #   id: secret-match-staging
-      #   run: |
-      #     if [ "${{ steps.extract-release-tag.outputs.release_tag }}" == "${{ vars.STAGING_RELEASE_VERSION }}" ]; then
-      #       echo "secret-match-staging=true" >> $GITHUB_OUTPUT
-      #     else
-      #       echo "secret-match-staging=false" >> $GITHUB_OUTPUT
-      #     fi
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v1
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Install latest version of AWS CLI
-        run: |
-          sudo apt-get clean
-          sudo apt-get update
-          sudo apt-get install -y awscli
-          sudo apt install python3-pip
-          pip install awscli --upgrade
+      #     sudo apt-get clean
+      #     sudo apt-get update
+      #     sudo apt-get install -y awscli
+      #     sudo apt install python3-pip
+      #     pip install awscli --upgrade
     
       ### Skipped Extract Secret Stage
-      - name: Extract secret value (staging)
-        #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
-        id: extract-secret-value-staging
+      # - name: Extract secret value (staging)
+      #   #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
+      #   id: extract-secret-value-staging
+      #   run: |
+      #       #one_portal environment variables 
+      #       echo "database_host=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_host')" >> $GITHUB_OUTPUT
+      #       echo "database_username=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_username')" >> $GITHUB_OUTPUT
+      #     # echo "database_password=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_password')" >> $GITHUB_OUTPUT
+      #     # echo "database_name=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_name')" >> $GITHUB_OUTPUT
+      #     # echo "secret_key_base=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.secret_key_base')" >> $GITHUB_OUTPUT
+      #     # echo "RAILS_ENV=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.RAILS_ENV')" >> $GITHUB_OUTPUT
+      #     # echo "NODE_ENV=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.NODE_ENV')" >> $GITHUB_OUTPUT
+
+      # - name: ECR Login one_portal (staging)
+      #   uses: aws-actions/amazon-ecr-login@v1
+      #   #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
+      #   with:
+      #       registry: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+      #       repository: ${{ env.ECR_REPO_STAGING-1 }}
+      #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #       aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Run docker container
+        id: docker-run
         run: |
-            #one_portal environment variables 
-            echo "database_host=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_host')" >> $GITHUB_OUTPUT
-            echo "database_username=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_username')" >> $GITHUB_OUTPUT
-          # echo "database_password=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_password')" >> $GITHUB_OUTPUT
-          # echo "database_name=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.database_name')" >> $GITHUB_OUTPUT
-          # echo "secret_key_base=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.secret_key_base')" >> $GITHUB_OUTPUT
-          # echo "RAILS_ENV=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.RAILS_ENV')" >> $GITHUB_OUTPUT
-          # echo "NODE_ENV=$(aws secretsmanager get-secret-value --region us-east-1 --secret-id ${{ vars.STAGING_SECRET_ARN }} --query 'SecretString' --output text | jq -r '.NODE_ENV')" >> $GITHUB_OUTPUT
-
-      - name: ECR Login one_portal (staging)
-        uses: aws-actions/amazon-ecr-login@v1
-        #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
-        with:
-            registry: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-            repository: ${{ env.ECR_REPO_STAGING-1 }}
-            aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-            aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-            aws-region: ${{ env.AWS_REGION }}
-
-      - name: Build and tag Docker image One_portal (staging)
-        id: build-image-new-app-staging
-        uses: docker/build-push-action@v2
-        #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
-        with:
-          context: .
-          file: ./Dockerfile
-          build-args: |
-             STAGING_DB_HOST=${{ steps.extract-secret-value-staging.outputs.database_host }}
-             STAGING_DB_USERNAME=${{ steps.extract-secret-value-staging.outputs.database_username }}
-        #   STAGING_DB_PASSWORD=${{ steps.extract-secret-value-staging.outputs.database_password }}
-        #   STAGING_DB_DATABASE=${{ steps.extract-secret-value-staging.outputs.database_name }}
-        #   SECRET_KEY_BASE=${{ steps.extract-secret-value-staging.outputs.secret_key_base }}
-        #   RAILS_ENV=${{ steps.extract-secret-value-staging.outputs.RAILS_ENV }}
-        #   NODE_ENV=${{ steps.extract-secret-value-staging.outputs.NODE_ENV }}
-          push: true
-          tags: |
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_STAGING-1 }}:${{ env.IMAGE_TAG }}
-            ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_STAGING-1 }}:${{ github.sha }}
-          if: always()
-          run: |
-            echo "Building Docker image..."
-            echo "Building Docker image..."
-
-      - name: Update ECS service for one_portal(staging)
-        #if: ${{ steps.secret-match-staging.outputs.secret-match-staging == 'true' }}
-        run: |
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER_STAGING }} \
-            --service ${{ env.ECS_SERVICE_STAGING-1 }} \
-            --force-new-deployment \
-            --region ${{ env.AWS_REGION }}
+          docker pull public.ecr.aws/c4n0o7y9/mssql-repo:latest
+          docker run -d --name test-con -p 1401:1433 public.ecr.aws/c4n0o7y9/mssql-repo:latest
+          docker exec -it test-con /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P 'P@ssword1234' -Q 'SELECT Name FROM sys.Databases'
