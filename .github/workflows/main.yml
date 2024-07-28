@@ -36,7 +36,11 @@ jobs:
         run: chmod +x check_port.sh
 
       - name: Run port availability script
+        id: check-port
         run: ./check_port.sh
+
+      - name: Use the available port
+        run: echo "The available port is ${{ steps.check-port.outputs.available_port }}"
       # - name: Configure AWS credentials
       #   uses: aws-actions/configure-aws-credentials@v1
       #   with:

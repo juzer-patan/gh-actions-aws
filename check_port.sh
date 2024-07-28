@@ -16,6 +16,7 @@ while true; do
   port=$(generate_random_port)
   if is_port_available $port; then
     echo "Available port: $port"
+    echo "::set-output name=available_port::$port"
     break
   fi
 done
