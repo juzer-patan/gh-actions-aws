@@ -32,6 +32,11 @@ jobs:
         uses: actions/checkout@v2
         with:
           fetch-depth: 0
+      - name: Make check_port.sh executable
+        run: chmod +x check_port.sh
+
+      - name: Run port availability script
+        run: ./check_port.sh
       # - name: Configure AWS credentials
       #   uses: aws-actions/configure-aws-credentials@v1
       #   with:
@@ -70,10 +75,3 @@ jobs:
       #       aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
       #       aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       #       aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Run docker container
-        id: docker-run
-        run: |
-          docker pull public.ecr.aws/c4n0o7y9/mssql-repo:latest
-          docker run -d --name test-con -p 1401:1433 public.ecr.aws/c4n0o7y9/mssql-repo:latest
-          docker exec test-con /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -P 'P@ssword1234' -C -Q 'SELECT TOP 10 StockItemID, StockItemName FROM WideWorldImporters.Warehouse.StockItems ORDER BY StockItemID'
